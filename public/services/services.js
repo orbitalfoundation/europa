@@ -2,26 +2,45 @@
 ///
 /// Service Manager
 ///
-/// This is a kernel service that itself handles messaging and creation and management of (other) services.
+/// Deliver messages to services - loading creating and managing asynchronous services if needed.
 ///
-/// What is a service?
+/// Message payload
 ///
-/// 	+ A service is a wrapper for some functionality - it is a message end point that does some async work on demand
-/// 	+ From a callers perspective a service is a thing that can handle messages in some useful way (a service does some work).
-/// 	+ From the perspective of this code, the job is to route messages to the right service, and/or create & run that service.
-/// 	+ Services are asynchronous - there is no function call style suspension of the sender.
+///		uuid: -> a specific service instance (optional)
+///		service: -> a unique identifier for the service (either this or a uuid must be provided)
+///		...		 -> other arguments for the service (passed through but otherwise ignored)
+///
+/// Service identifier is a urn like identifier:
+///
+///		[domain segment]:[service name]:[optional checksum]:[optional signature]
+///
+///		domain segment: -> a specific domain such as 'orbital.github.io' or '*' or nothing -> meaning nearest upstream provider
+///
+///		service name: -> a locally unique name for a service, this translates to an actual file path in current architecture
+///
+/// Notes:
+///
+///		https://blog.tidelift.com/the-state-of-package-signing-across-package-managers
 ///
 
-export default class Services {
+class Services {
 
 	constructor(args=0) {
 		this.counter = 0
 		this._service_instances = { "services": this }
-		if(args)this.send(args)
+		if(args)this.channel(args)
 	}
 
 	///
-	/// Send Channel traffic
+	/// uuid helper
+	/// 
+
+	uuidv4() {
+		return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16) )
+	}
+
+	///
+	/// build a channel to a service, also forward it contents of this message
 	///
 	/// Callers typically call this in two scenarios:
 	///		1) when they want to specifically message an instance of a service by its uuid
@@ -34,7 +53,7 @@ export default class Services {
 	///		4) Return the service
 	///
 
-	async send(args) {
+	async channel(args) {
 
 		// sanity check
 		if(!args || !(args.uuid || args.service)) {
@@ -43,7 +62,7 @@ export default class Services {
 			return
 		}
 
-		// inject a back channel to this service manager as a convenience - _services is a reserved keyword therefore
+		// stuff back channel in
 		args._services = this
 
 		// find service
@@ -54,7 +73,7 @@ export default class Services {
 			service = this._service_instances[args.uuid]
 		}
 
-		// or make new service - todo arguably the uuid could set a service path as an option? ponder more
+		// or make new service
 		if(!service && args.service) {
 			service = await this._load_service(args)
 		}
@@ -68,7 +87,7 @@ export default class Services {
 
 		// pass the message to the service
 		// NOTE doing an await is probably a bad idea - it should not be needed - todo try remove await
-		await service.send(args)
+		await service.write(args)
 
 		// return the service
 		return service
@@ -103,20 +122,25 @@ export default class Services {
 
 	async _load_service(args) {
 
-		// reject remote urls for now - todo allow remote urls later
-		if(!args.service || !args.service.startsWith("localhost:")) {
-			let error = {error:"SERVICES: create: bad request remote urls not supported"} 
+		if(!args.service || !args.service.length) {
+			let error = {error:"SERVICES: create: missing service path"} 
 			console.error(error)
 			console.error(service)
 			return 0
 		}
 
-		try {
+		// split the resource locator
+		// the notation is domain:path where domain can be * for localhost
+		// for now just handle localhost - todo improve
 
-			// fetch handler from wherever it is on the internet
-			//console.log("SERVICES: loading class off disk service named " + args.service)
-			let path = "../.."+args.service.substring("localhost:".length)+".js"
-			let blob = await import(path)
+		let parts = args.service.split(':')
+		let domain = 0
+		let path = parts[parts.length-1]
+
+		// fetch
+
+		try {
+			let blob = await import("../../"+path+".js")
 			if(!blob) {
 				console.error("SERVICES: service not found " + path)
 				return 0
@@ -131,7 +155,7 @@ export default class Services {
 
 			// TODO revise idea of user ids for security later
 			let owner = args.uid || "root"
-			let uuid = owner + "/" + args.service + "/" + this.counter++
+			let uuid = owner + path + "/" + this.counter++
 			console.log("SERVICES: instancing service name="+args.service+" at uuid="+uuid)
 
 			// instance service - pass it a few args to help including a back channel to this manager
@@ -143,8 +167,8 @@ export default class Services {
 
 			let service = new construct(args)
 
-			// services need a send method at least
-			if(!service.send || !(service.send instanceof Function)) {
+			// services need a write method at least
+			if(!service.write || !(service.write instanceof Function)) {
 				console.error("SERVICES: newly loaded service is missing the send() method " + path)
 				return 0
 			}
@@ -160,5 +184,10 @@ export default class Services {
 			return 0
 		}
 	}
-
 }
+
+let services = new Services()
+
+window.SERVICES = services
+
+export default services

@@ -1,6 +1,6 @@
 
 /////////////////////////////////////////////////////////////////
-/// db helper
+/// db 
 ///
 /// stores hashes
 /// hash space is overloaded - some terms are reserved
@@ -94,7 +94,7 @@ function db_query_children(queries) {
 }
 
 ////////////////////////////////////////////////////////////
-// filesystem glue
+// express js
 ////////////////////////////////////////////////////////////
 
 import { dirname } from 'path';
@@ -102,15 +102,11 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-///////////////////////////////////////////////////////////////////
-// express js
-///////////////////////////////////////////////////////////////////
-
 import path from 'path'
 import express from 'express'
 import http from 'http'
 
-let static_files = path.join(__dirname, '../client')
+let static_files = path.join(__dirname, '../public')
 
 const app = express()
 app.use(express.json());
@@ -125,11 +121,6 @@ app.use(function(err, req, res, next) {
 	console.log(err)
 	next(err)
 })
-
-
-/////////////////////////////////////////////////////////////////
-// immediate mode query interface for express js
-/////////////////////////////////////////////////////////////////
 
 app.post('/query',(req,res) => {
 	let results = db_query(req.body)
@@ -148,14 +139,15 @@ import { Server } from "socket.io"
 const io = new Server(httpserver)
 
 io.on('connection', (socket) => {
-	console.log('Server: user connected')
+	// - send graph on new connections - todo
 
-	socket.on('hello', (msg) => {
-		console.log('Server: client message')
-		console.log(msg)
-		socket.emit("hello2", "GREETINGS" )
+	// send to all listeners
+	socket.on('data', (args) => {
+		io.emit("data",args)
+		// - todo save graph
 	})
 
+	// do something with disconnects i guess
 	socket.on('disconnect', () => {
 		console.log('Server: user disconnected')
 	})

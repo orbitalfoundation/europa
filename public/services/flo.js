@@ -39,7 +39,11 @@ export default class Flo {
 		this._services = args._services
 	}
 
-	async send(args) {
+	///
+	/// tell flo to do some work
+	///
+
+	async write(args) {
 		let c = args && args.command ? args.command : "load"
 		switch(c) {
 			case "load": {
@@ -54,12 +58,10 @@ export default class Flo {
 	}
 
 	///
-	/// Flo doesn't send any messages right now
+	/// add a listener to any flo output - there is none so this is a stub
 	///
 
-	listen() {
-
-	}
+	read() {}
 
 	///
 	/// Load a manifest, which is a collection of one or more apps, and each app is a collection of services
@@ -73,22 +75,20 @@ export default class Flo {
 			return
 		}
 
-		// TODO support networks
-		if(!args.load.startsWith("localhost:")) {
-			console.error("Flo: only localhost allowed")
-			return
-		}
+		let parts = args.load.split(':')
+		let domain = 0
+		let path = parts[parts.length-1]
 
 		// perform load command - later test http loads for now just load locally off disk todo
 		try {
-			let path = "../.."+args.load.substring("localhost:".length)+".js"
-
-			let modules = await import(path)
+			let modules = await import("../.."+path+".js")
 
 			if(!modules) {
 				console.error("Flo: bad file " + path)
 				return
 			}
+
+			/* not really needed
 
 			// TODO : later allow manifests to contain a variety of kinds of things -> arrays, objects, functions, deal with them all
 
@@ -98,7 +98,7 @@ export default class Flo {
 					// todo note there is no point in returning results because services aren't really static
 					// also flo could just inject a watcher if it wanted to know what the manifest was doing
 					//let some_services =
-					await v({_services:this._services,flo:this})
+					await v({_services:this._services,_flo:this})
 				}
 				else if((v instanceof Object)) {
 					// or if there is a hash - treat it like a service declaration and try produce it as a service
@@ -107,10 +107,14 @@ export default class Flo {
 				// could store the services found
 			}
 
+			*/
+
 		} catch(err) {
 			console.error(err)
 		}
 	}
+
+	/*
 
 	///
 	/// Walk through the manifest - manufacturing all the services (by leveraging the services manager)
@@ -145,6 +149,9 @@ export default class Flo {
 
 		manifest.services = services
 	}
+
+	*/
+
 }
 
 
