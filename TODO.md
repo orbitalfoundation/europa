@@ -1,45 +1,134 @@
-
 # TODO
 
-	- networking improve
+	* server up on net
 
-		- improve with real persistence
-		- look closely at traffic and make sure spurious traffic is not sent
-		- look at traffic filtering
-		- respect subscribing to different shards; see if we can stand up multiple shards simulaneously
+	- a desktop should have a list of other apps that can also be loaded and run (static for now)
+		- actually load on demand
+		- effectively apps are urls; so the list of apps is really just a list of urls
+		- need a way to paint to camera context
+		- and camera should be removed from scenegraph completely and be something that is a shared resource
+		- let us statically set the rooms as apps for now
 
-	- virtual venice (example app)
+	- server immprovements
+		- filtering per room net traffic
+		- persistance
 
-		- see if i can get some pretty geometry for the area
-		- perhaps support real geolocation
+# SDL DOCS V1
 
-	- self docs (example app)
+	* General overall goals
 
-		- do
+		- modular dynamic late composition of services
+		- computational soup
+		- manifest or simple grammar
 
-	- app loading and signing
+	* architecture
 
-		- let's really make sure that we are cryptographically signing apps
+		* Services Manager
+			* spawns services and messages them
+			* has a mechanism for generating a uuid locally that is somewhat durable
+			- [later] securely load better over networks
+			- [later] user can supply a uuid based on a public/private auth such as metamask or keplr
 
-	- electron fix
+		* Flo - Manifest Runner
+			* Loads and runs manifests
 
-# 2d ux
+		* View
+			* Basics are in place and it works well
+			- box with colors and materials and pose
+			- gltf
+			- light
+			- camera
+			- a button
+				- catch press event
+				- return click event
+				- stylable
+			- layout tool
+				- layout a keyboard for example
+			- 2d elements
+			- flesh out more basic types and showcase; including 2d elements, buttons; need a demo to showcase all + cards view
 
-	- philosophically 2d elements are like html dom nodes, they are multi-talented and each does just about everything
-	- i want to render these to texture render targets, and allow remixing
-	- also i want some layout powers and generally i want to be able to tell good stories, buttons, text, and layout, animation
+		* Net
+			* Basics are in place and multiplayer scenarios are easy to build and look good
+			* Server has a concept of merging state and only publishing actually significant changes
+			~ Observe publishes everything; should only publish query subset and changes thereof
+			~ Durable persistence?
+			- COULD HAVE SMART RULES LIKE AN OBJ CANNOT MOVE SUPER FAR
+			- need to think through how to late late joiners not overwrite default content
+			- camera needs thought re networkign
 
-	- bring up a 2d display
+		- some kind of ai module as an example
 
-	- draw text, boxes, fonts, colors and so on in a controlled way
+	* examples
 
-	- buttons widgets draggable panels with overflow
+		- a clock
+		- a button
+		- a desktop?
+		- a network demo
+		- cherry blossom vignette
 
-	- animations and style and layout capabilities
+## Version 1: Stories
 
-# 3d to improve
+<<<
+	* Demo 0 - scenario picker
 
-	- 3d graph segments, add, remove, update frags, network all this?
+	* Demo 1 - network
+		- pick a room to join; limit traffic to that room
+		- avatar picker for now (later profile edit)
+
+		* Participant mobility
+		- let people spawn their own levels or worlds, and flush, reset, set who can join 
+		- Collisions
+		- Walkable surfaces
+		- example workbenches; working interfaces
+		- can we package and re-use behaviors?
+
+<<<
+	- Demo 2 - Cherry Blossom vignette
+		- how can i load an app -> can i have a button? is this multiplayer if loaded into multiplayer room?
+		- particle effects
+
+<<<
+	- Demo 3 - Presentation
+		- Document using app itself, do a writeup and release, or document in miro
+
+
+## Version 2:
+
+	* Venice App Demo
+		- let people add geometry
+		- avatar selection
+		- Shared object spawning and dragging
+		- video conf
+
+	* Documentation App
+		- cards
+
+	* Client overall
+		- signed apps
+
+	* Networking improve
+		- durable persistence
+		- network physics also
+		- traffic filtering
+		- test multiple shards
+
+## Version x
+
+	- make a ton of 2d basic elements
+		- can i have a button
+		- can i have a 3d button
+		- can i have a card
+		- card layouts
+		- general information layous
+		- text overall; fitting boxes
+		- fonts
+		- colors
+		- boxes, circles
+		- animation
+
+## Version x: 3d to improve
+
+	- 3d graph segments, add, remove, update frags
 	- turn nodes off and on
 	- camera controls
 

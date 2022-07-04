@@ -1,33 +1,19 @@
 
 ///
-/// Flo SDL
+/// Flo SDL Instance
 ///
-/// Produce whatever is specified in our SDL (Scenario Definition Language)
+/// Flo is an 'app runner' that loads and runs apps defined in a manifest - that enumerates services wired together and behaviors.
 ///
-/// The SDL describes collections of objects as a DAG [https://www.techopedia.com/definition/5739/directed-acyclic-graph-dag]
+/// Flo provides a 'right sized' simple, high level grammar for describing applications made out of services.
+/// At the moment I've decided that the right language is simply javascript.
 ///
-/// An SDL document is refered to as a 'manifest'.
-/// Overall an SDL produces one or more 'applications'.
-/// The top level objects in an SDL are descriptions of 'services' written in JS or WASM and are manufactured as separate threads.
+/// An 'app' or 'application' in my mind is a fairly loose bucket, but has some key jobs:
 ///
-/// A typical manifest may look like so:
-///
-///  Manifest
-///     Application
-///        Service
-///        Service
-///        Service
-///        Service
-///		   Routes
-///		   Routes
-///     Application
-///        Service
-///        Service
-///        Service
-///        Service
-///		   Routes
-///
-/// The SDL can wire services together as well using routes. A route is effectively a message channel between threads.
+///		+ define a collection of services (blobs of code that are loaded off disk - can be WASM or javascript right now)
+///		+ define a bunch of relationships between those services (wires or routes that are explicitly built the manifest)
+///		+ define any initial data passed to services
+///		+ define security perms granted to services
+///		+ perform actual high level procedural logic; basically the glue logic, lightweight event driven behaviors and scripting.
 ///
 
 
@@ -58,10 +44,11 @@ export default class Flo {
 	}
 
 	///
-	/// add a listener to any flo output - there is none so this is a stub
+	/// let a third party register a listener with flo to listen to anything that flo publishes
+	/// at the moment flo doesn't emit anything so there is no point in filling this method out
 	///
 
-	read() {}
+	read(listener) {}
 
 	///
 	/// Load a manifest, which is a collection of one or more apps, and each app is a collection of services
@@ -79,7 +66,8 @@ export default class Flo {
 		let domain = 0
 		let path = parts[parts.length-1]
 
-		// perform load command - later test http loads for now just load locally off disk todo
+		// perform load command
+		// TODO later test http loads for now just load locally off disk 
 		try {
 			let modules = await import("../.."+path+".js")
 
@@ -88,7 +76,11 @@ export default class Flo {
 				return
 			}
 
-			/* not really needed
+			/*
+
+			TODO remove all this?
+				it is not really needed - right now i just procedurally manufacture each service on demand by hand by talking directly to the services layer
+				but there is some argument for declarative expressions in that they let other parts of the system understand state more easily
 
 			// TODO : later allow manifests to contain a variety of kinds of things -> arrays, objects, functions, deal with them all
 
@@ -118,6 +110,7 @@ export default class Flo {
 
 	///
 	/// Walk through the manifest - manufacturing all the services (by leveraging the services manager)
+	/// TODO this may now be entirely obsolete given that i am procedurally declaring services on demand in the loaded script
 	///
 
 	async _app(name,manifest) {
@@ -155,7 +148,7 @@ export default class Flo {
 }
 
 
-/* - may not need a factory
+/* todo - remove this factory completely - it turns out that it is better to simply have the services manager do all this
 
 
 ///

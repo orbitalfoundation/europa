@@ -1,50 +1,71 @@
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// largely declarative layout for mixed 2d/3d scene
+/// Metaverse1
+///
+/// This document is intended to exercise ideas in the Orbital SDL grammar:
+///
+///		+ Describing typical static or startup content to pass to a view service
+///		+ Describing lightweight event handlers
+///		+ Describing heavier weight full blown services
+///		+ Exercising a view service
+///		+ Exercising a network service
+///		+ Producing in total a lightweight useful application; in this case a simple multiplayer 3d shared space
 ///
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
 //
-// ground - a 3d primitive of a special type
+// ground
 // TODO handle relative urls
 //
 
 let myground = {
 	uuid:"/myground",
-	kind:"ground",
-	heightmap: "./apps/metaverse1/textures/heightMap.png",
-	art: "./apps/metaverse1/textures/ground.jpg",
+	kind:"box",
+	network:"static",
+	created:0,
+	updated:0,
+	physics:{shape:"box",mass:0},
+	receivesShadows: true,
+	xyz:[0,-0.1,0],
+	whd:[3,0.1,3],
+	mat: {
+		alpha: 0.5,
+		heightmap: "./apps/metaverse1/textures/heightMap.png",
+		art: "./apps/metaverse1/textures/ground.jpg",
+	}
 }
-
 
 //
 // a sign - a 3d primitive with 2d elements
 //
 
-let mysign_material = {
-	uuid:"/mysign/material",
-	kind:"material",
-	rgba:0x964b00,
-	children:[
-		{
-			uuid:"/mysign/material/text",
-			kind:"text",
-			text:"hello",
-			font:"bold 44px monospace",
-			rgba:0xffff00ff
-		}
-	]
-}
-
 let mysign = {
 	uuid:"/mysign",
 	kind:"box",
+	network:"static",
+	created:0,
+	updated:0,
+	//physics:{shape:"box",mass:0.1},
 	shadow:1,
-	ypr:[-1.5707,1.5707,0],
-	xyz:[1,0.5,0],
-	whd:[0.1,1,1],
-	mat: mysign_material,
+	//ypr:[-1.5707,1.5707,0],
+	xyz:[1,1,0],
+	whd:[1,1,1],
+	pickable:true,
+	mat: {
+		alpha:0.5,
+		rgba:0x964b00,
+		children:[
+			{
+				uuid:"/mysign/material/text",
+				kind:"text",
+				text:"hello",
+				font:"bold 44px monospace",
+				rgba:0xffff00ff
+			}
+		]
+	}
 }
 
 //
@@ -54,11 +75,19 @@ let mysign = {
 
 let mytree = {
 	uuid:"/mytree",
+	kind:"group",
+	network:"static",
+	created:0,
+	updated:0,
 	xyz:[0,0,0],
+	pickable:true,
 	children:[
 		{
 			uuid:"/mytree/trunk",
 			kind:"box",
+			network:"static",
+			created:0,
+			updated:0,
 			shadow:1,
 			whd:[0.1,1,0.1],
 			xyz:[-1,0,0],
@@ -67,6 +96,9 @@ let mytree = {
 		{
 			uuid:"/mytree/crown",
 			kind:"sphere",
+			network:"static",
+			created:0,
+			updated:0,
 			shadow:1,
 			whd:[0.7,0.7,0.7],
 			xyz:[-1,0.7,0],
@@ -77,13 +109,17 @@ let mytree = {
 
 //
 // camera - avatar will take over camera
+// - todo we do not want to network the cam at all really
 //
 
 let mycamera = {
 	uuid:"/mycamera",
 	kind:"camera",
+	network:"donotnetwork",
+	created:0,
+	updated:0,
 	xyz:[0,2,5],
-	lookat:[0,0,0]
+	lookat:[0,0,0],
 }
 
 //
@@ -93,6 +129,9 @@ let mycamera = {
 let mylight_positional = {
 	uuid:"/mylight",
 	kind:"light",
+	network:"static",
+	created:0,
+	updated:0,
 	xyz:[10,10,10],
 	intensity:2.5
 }
@@ -100,6 +139,9 @@ let mylight_positional = {
 let mylight_general = {
 	uuid:"/mylight",
 	kind:"light",
+	network:"static",
+	created:0,
+	updated:0,
 }
 
 //
@@ -107,33 +149,38 @@ let mylight_general = {
 //
 
 let myavatar = {
-	uuid:"/myavatar/" + SERVICES.uuidv4(),
+	uuid:"/myavatar/" + SERVICES.durable_uuid(),
 	kind:"gltf",
+	network:"dynamic",
+	created:0,
+	updated:0,
 	art:"./apps/metaverse1/llama/",
-	xyz:[0,0,0],
+	adjust:{xyz:[0,-0.5,0],ypr:[0,1.9,0]},
+	whd:[1,1,1],
+	xyz:[0,1,0],
+	xyzd:[0,1,0],
+	ypr:[0,0,0],
+	yprd:[0,0,0],
+	//	physics:{shape:"box",mass:0.1},
+	debugbox:1,
+	pickable:true,
 }
 
 //let myparticle_fx = {
-//	// it is handy to push particle fx down to view
-//}
-
-//let mytrigger = {
-//	// it is handy to push rollover collision triggers down to view
 //}
 
 //
-// overall scene
+// A typical scene
+// TODO - note that it might be nice not to bother having a scene parent but simply pass an array of elements to rasterizer
 //
 
-let myscene = {
-	uuid:"/myscene",
-	kind:"scene",
-	children:[ myground, mysign, mytree, myavatar, mycamera, mylight_positional ]
-}
+let myscene = [ mylight_positional, myground, mysign, mytree, myavatar, mycamera ]
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
-/// services
+/// application services - describes the heavier services that this application manifest depends on to start with
+///
+/// services design:
 ///
 ///		- there are many ways to indicate which services i want to start; a manifest could also work
 ///		- an await could probably be mitigated using a hidden promise but i don't really care
@@ -150,37 +197,29 @@ let myscene = {
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 let view = await SERVICES.channel({ service:"*:/services/view", observe:"*" })
-let net = await SERVICES.channel({ service:"*:/services/net", observe:"/metaverse1/*" })
+let net = await SERVICES.channel({ service:"*:/services/net" })
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///
 /// deal with events
 ///
+/// TODO work in progress - what is a good way to portably decorate components with these lightweight behaviors?
+///
+/// can behavior also be loaded in a reasonable way? and attached easily? right now they are hardcoded here...
+///
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+import "/libs/babylon.js"
 
 view.read((e) => {
 
 	if(e.event == "pick") {
+		console.log("picking")
+	}
 
-		console.log("pic")
-
-		if(e.fragment && e.fragment.uuid == "/mysign") {
-			console.log("move sign")
-			mysign.xyz[1]+= 0.5
-			net.write({load:mysign})
-		}
-
-		if(e.fragment && e.fragment.uuid == "/mytree") {
-			console.log("move tree")
-			mytree.xyz[1]+= 0.5
-			net.write({load:mytree})
-		}
-
-		if(e.fragment && e.fragment.uuid == myavatar.uuid) {
-			console.log("move avatgar")
-			myavatar.xyz[1]+= 0.5
-			net.write({load:myavatar})
-		}
+	if(e.event == "keydown") {
+		// todo for now - later some kind of router switcher manager would be nice
+		avatar_movement_handler(e)
 	}
 
 	// startup
@@ -189,12 +228,57 @@ view.read((e) => {
 	// collisions
 })
 
-net.read((e)=>{
-	// handle change requests
-	console.log(1)
-	view.write(e)
-})
 
-// this could be inside of net and could be contingent on say if we are first or authoritative
+let avatar_movement_handler = (args) => {
 
+	let uuid = myavatar.uuid
+	let xyz = myavatar.xyz
+	let ypr = myavatar.ypr
+
+	// rotate and get translation change also
+
+	let m = 0
+	switch(args.key) {
+		case 'a': ypr[1] -=0.1; break;
+		case 'd': ypr[1] +=0.1; break;
+		case 's': m = 0.1; break;
+		case 'w': m = -0.1; break;
+	}
+
+	// get current orientation as euler and use to estimate translation target
+	let rot = BABYLON.Quaternion.FromEulerAngles(...ypr)
+	let vec = new BABYLON.Vector3(0,0,m).rotateByQuaternionToRef(rot,BABYLON.Vector3.Zero())
+
+	if(m) {
+		xyz[0] += vec.x
+		xyz[1] += vec.y
+		xyz[2] += vec.z
+	}
+
+	// send to local view by hand (rather than relying on network) to lower latency for locally authoritative state of player
+	// todo in general view should support tweening on pose
+	view.write({load:[{uuid,xyz,ypr}]})
+
+	// multicast to other network listeners except back to this instance
+	// todo may want to even disallow / ignore remote state changes since we are locally authoritative for the player state
+	net.write({load:[{uuid,xyz,ypr}]})
+
+	// put camera behind translation target - publish locally immedately - not to network just to view
+	vec = new BABYLON.Vector3(0,0,5).rotateByQuaternionToRef(rot,BABYLON.Vector3.Zero())
+	vec.x += xyz[0]
+	vec.y += xyz[1] + 2
+	vec.z += xyz[2]
+	view.write({load:[{uuid:mycamera.uuid,xyz:[vec.x,vec.y,vec.z],lookat:xyz}]})
+
+
+}
+
+// Write scene to server - server is smart enough not to re-echo state if it has not changed but it can be redundant to even send this
 net.write({load:myscene})
+
+// Route all inbound traffic directly to view - in the future some events may want to be caught here
+net.read(view.write)
+
+// Listen to traffic for this area - this populates the initial local scene
+net.write({observe:"/metaverse1/*"})
+

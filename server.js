@@ -17,20 +17,33 @@
 /////////////////////////////////////////////////////////////////
 
 let db_indexed = {}
+let db_created = {}
+let db_updated = {}
+
+const onewayCompare = (obj1, obj2) => Object.keys(obj1).every(key => obj2.hasOwnProperty(key) && obj1[key] === obj2[key] )
 
 ///
-/// add an item to database
-/// - TODO right now the indexes are hardcoded allow more
+/// merge changes into database and notify if changes occurred
+///
+/// - TODO right now the indexes are hardcoded allow more kinds of indexing schemes not just on uuid
 /// - TODO fancier merge rules?
 /// - TODO fancy ACL rules per obj?
 ///
 
-function db_insert(item) {
-	if(!item || !item.slug) return
-	let now = Date.now()
-	let prev = db_indexed[item.slug] || { created:now }
-	let results = db_indexed[item.slug] = { ...prev, ...item, updated:now }
-	return results
+function db_merge(changes) {
+	// must be valid change list
+	let uuid = changes ? changes.uuid : 0
+	if(!uuid) return 0
+	// must have contributed some change to the global state
+	let prev = db_indexed[uuid]
+	if(prev && onewayCompare(changes,prev)) return 0
+	// set created and updated
+	db_updated[uuid]=Date.now()
+	if(!db_created[uuid]) db_created[uuid]=db_updated[uuid]
+	// do a merge
+	let merged = db_indexed[uuid] = { ...(prev?prev:{}),...changes}
+	// return whole set
+	return merged
 }
 
 ///
@@ -69,7 +82,7 @@ function db_query(queries) {
 ///
 /// given a set of queries on objects - return the children of them as an array
 ///
-
+/* tbd may not support
 function db_query_children(queries) {
 	let parents = db_query(queries)
 	parents.forEach(item=>{
@@ -92,6 +105,7 @@ function db_query_children(queries) {
 	})
 
 }
+*/
 
 ////////////////////////////////////////////////////////////
 // express js
@@ -106,7 +120,7 @@ import path from 'path'
 import express from 'express'
 import http from 'http'
 
-let static_files = path.join(__dirname, '../public')
+let static_files = path.join(__dirname, './public')
 
 const app = express()
 app.use(express.json());
@@ -114,7 +128,7 @@ const httpserver = http.createServer(app)
 
 app.use(express.static(static_files))
 app.get('/', (req, res) => {
-	res.sendFile(static_files + '/client_browser_main.html');
+	res.sendFile(static_files + '/index.html');
 })
 
 app.use(function(err, req, res, next) {
@@ -141,10 +155,33 @@ const io = new Server(httpserver)
 io.on('connection', (socket) => {
 	// - send graph on new connections - todo
 
-	// send to all listeners
 	socket.on('data', (args) => {
-		io.emit("data",args)
-		// - todo save graph
+
+		// request to start observing based on some query? later filter better TODO
+		if(args.observe) {
+			console.log("net: request to observe")
+			socket.emit("data",{load:Object.values(db_indexed)})
+		}
+
+		// request to push some state to all sockets except the emitter
+		if(args.load) {
+			console.log("net: request to load")
+			if(!Array.isArray(args.load)) {
+				console.error("server: only accepts arrays of objects")
+				console.error(args)
+				return
+			}
+			let changes = []
+			args.load.forEach((item)=>{
+				if(db_merge(item)) {
+					console.log("net: merged " + item.uuid)
+					changes.push(item)
+				}
+			})
+			if(changes.length) {
+				socket.broadcast.emit("data",{load:changes})
+			}
+		}
 	})
 
 	// do something with disconnects i guess
@@ -157,7 +194,23 @@ io.on('connection', (socket) => {
 // start express and websockets together
 /////////////////////////////////////////////////////////////////
 
-httpserver.listen(3000, () => {
-	console.log('listening on *:3000')
+const port = parseInt(process.env.PORT) || 8080;
+httpserver.listen(port, () => {
+	console.log('server is listening')
 })
 
+/*
+
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
+  const name = process.env.NAME || 'World';
+  res.send(`Hello ${name}!`);
+});
+
+app.listen(port, () => {
+  console.log(`helloworld: listening on port ${port}`);
+});
+
+*/

@@ -1,3 +1,6 @@
+/*
+
+useful but not actually used right now
 
 ///
 /// Typically a channel creates a bridge between two end points - it is enough of an abstraction to allow me to wire up services
@@ -34,3 +37,5 @@ export default class Channel {
 	send() {
 	}
 }
+
+*/
